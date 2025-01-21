@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <iostream>
@@ -168,6 +169,16 @@ namespace clap { namespace helpers {
       clapUndoContextSetCanRedo,
       clapUndoContextSetUndoName,
       clapUndoContextSetRedoName,
+   };
+
+   template <MisbehaviourHandler h, CheckingLevel l>
+   const clap_plugin_location Plugin<h, l>::_pluginLocation = {
+      clapLocationSetLocation,
+   };
+
+   template <MisbehaviourHandler h, CheckingLevel l>
+   const clap_plugin_gain_adjustment_metering Plugin<h, l>::_pluginGainAdjustmentMetering = {
+      clapGainAdjustmentMeteringGet,
    };
 
    template <MisbehaviourHandler h, CheckingLevel l>
@@ -526,6 +537,11 @@ namespace clap { namespace helpers {
             return &_pluginUndoDelta;
          if (!strcmp(id, CLAP_EXT_UNDO_CONTEXT) && self.implementsUndoContext())
             return &_pluginUndoContext;
+         if (!strcmp(id, CLAP_EXT_LOCATION) && self.implementsLocation())
+            return &_pluginLocation;
+         if (!strcmp(id, CLAP_EXT_GAIN_ADJUSTMENT_METERING) &&
+             self.implementsGainAdjustmentMetering())
+            return &_pluginGainAdjustmentMetering;
       }
 
       return self.extension(id);
@@ -768,8 +784,8 @@ namespace clap { namespace helpers {
          if (self.isActive()) {
             self.hostMisbehaving(
                "it is illegal to call clap_audio_ports.set_config if the plugin is active");
-	    return false;
-	}
+            return false;
+         }
       }
 
       return self.audioPortsSetConfig(config_id);
@@ -799,7 +815,7 @@ namespace clap { namespace helpers {
                "it is illegal to call clap_audio_ports_activation.set_active() if the plugin is "
                "active if "
                "clap_plugin_audio_ports_activation.can_activate_while_processing() returns false");
-	    return false;
+            return false;
          }
       }
 
@@ -1795,6 +1811,52 @@ namespace clap { namespace helpers {
       self.undoContextSetRedoName(name);
    }
 
+   //------------------//
+   // clap_plugin_undo //
+   //------------------//
+
+   template <MisbehaviourHandler h, CheckingLevel l>
+   void Plugin<h, l>::clapLocationSetLocation(const clap_plugin_t *plugin,
+                                              const clap_plugin_location_element_t *path,
+                                              uint32_t num_elements) noexcept {
+      auto &self = from(plugin);
+      self.ensureMainThread("clap_plugin_location.set_location");
+
+      if (l >= CheckingLevel::Minimal) {
+         if (!path) {
+            self.hostMisbehaving(
+               "clap_plugin_location.set_location() was called without a null path!");
+            return;
+         }
+
+         if (num_elements == 0) {
+            self.hostMisbehaving(
+               "clap_plugin_location.set_location() was called without any path elements!");
+            return;
+         }
+      }
+
+      self.locationSetLocation(path, num_elements);
+   }
+
+   //--------------------------------------//
+   // clap_plugin_gain_adjustment_metering //
+   //--------------------------------------//
+   template <MisbehaviourHandler h, CheckingLevel l>
+   double Plugin<h, l>::clapGainAdjustmentMeteringGet(const clap_plugin_t *plugin) noexcept {
+      auto &self = from(plugin);
+      self.ensureAudioThread("clap_plugin_gain_adjustment_meterig.get");
+
+      const double gain = self.gainAdjustmentMeteringGet();
+      if (l >= CheckingLevel::Minimal) {
+         if (std::isnan(gain)) {
+            self.pluginMisbehaving("clap_plugin_gain_adjustment_meterig.get() returned NaN");
+            return 0;
+         }
+      }
+      return gain;
+   }
+
    /////////////
    // Logging //
    /////////////
@@ -1807,6 +1869,14 @@ namespace clap { namespace helpers {
    template <MisbehaviourHandler h, CheckingLevel l>
    void Plugin<h, l>::hostMisbehaving(const char *msg) const noexcept {
       log(CLAP_LOG_HOST_MISBEHAVING, msg);
+
+      if (h == MisbehaviourHandler::Terminate)
+         std::terminate();
+   }
+
+   template <MisbehaviourHandler h, CheckingLevel l>
+   void Plugin<h, l>::pluginMisbehaving(const char *msg) const noexcept {
+      log(CLAP_LOG_PLUGIN_MISBEHAVING, msg);
 
       if (h == MisbehaviourHandler::Terminate)
          std::terminate();
