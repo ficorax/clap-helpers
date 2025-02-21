@@ -143,7 +143,7 @@ namespace clap { namespace helpers {
       // clap_plugin_location //
       //////////////////////////
       bool canUseLocation() const noexcept;
-      void locationSetLocation(const clap_plugin_location_element_t *path,
+      void projectLocationSet(const clap_project_location_element_t *path,
                                uint32_t num_elements) const noexcept;
 
       ///////////////////////////////////
@@ -178,8 +178,9 @@ namespace clap { namespace helpers {
       const clap_plugin_tail *_pluginTail = nullptr;
       const clap_plugin_thread_pool *_pluginThreadPool = nullptr;
       const clap_plugin_timer_support *_pluginTimerSupport = nullptr;
-      const clap_plugin_location *_pluginLocation = nullptr;
+      const clap_plugin_project_location *_pluginProjectLocation = nullptr;
       const clap_plugin_gain_adjustment_metering *_pluginGainAdjustmentMetering = nullptr;
+      const clap_plugin_mini_curve_display *_pluginMiniCurveDisplay = nullptr;
 
       // state
       bool _isActive = false;

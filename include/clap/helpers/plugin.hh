@@ -5,7 +5,6 @@
 #include <mutex>
 #include <queue>
 #include <string>
-#include <vector>
 
 #include <clap/all.h>
 
@@ -323,18 +322,31 @@ namespace clap { namespace helpers {
       virtual void undoContextSetUndoName(const char *name) noexcept {}
       virtual void undoContextSetRedoName(const char *name) noexcept {}
 
-      //----------------------//
-      // clap_plugin_location //
-      //----------------------//
-      virtual bool implementsLocation() const noexcept { return false; }
-      virtual void locationSetLocation(const clap_plugin_location_element_t *path,
-                                       uint32_t num_elements) noexcept {}
+      //------------------------------//
+      // clap_plugin_project_location //
+      //------------------------------//
+      virtual bool implementsProjectLocation() const noexcept { return false; }
+      virtual void projectLocationSet(const clap_project_location_element *path,
+                                      uint32_t num_elements) noexcept {}
 
       //--------------------------------------//
       // clap_plugin_gain_adjustment_metering //
       //--------------------------------------//
       virtual bool implementsGainAdjustmentMetering() const noexcept { return false; }
       virtual double gainAdjustmentMeteringGet() noexcept { return 0; }
+
+      //--------------------------------//
+      // clap_plugin_mini_curve_display //
+      //--------------------------------//
+      virtual bool implementsMiniCurveDisplay() const noexcept { return false; }
+      virtual bool miniCurveDisplayRender(uint16_t *data, uint32_t data_size) noexcept {
+         return false;
+      }
+      virtual void miniCurveDisplaySetObserved(bool is_observed) noexcept {}
+      virtual bool
+      miniCurveDisplayGetAxisName(char *x_name, char *y_name, uint32_t name_capacity) noexcept {
+         return false;
+      }
 
       /////////////
       // Logging //
@@ -343,7 +355,9 @@ namespace clap { namespace helpers {
       void hostMisbehaving(const char *msg) const noexcept;
       void hostMisbehaving(const std::string &msg) const noexcept { hostMisbehaving(msg.c_str()); }
       void pluginMisbehaving(const char *msg) const noexcept;
-      void pluginMisbehaving(const std::string &msg) const noexcept { pluginMisbehaving(msg.c_str()); }
+      void pluginMisbehaving(const std::string &msg) const noexcept {
+         pluginMisbehaving(msg.c_str());
+      }
 
       // Receives a copy of all the logging messages sent to the host.
       // This is useful to have the messages in both the host's logs and the plugin's logs.
@@ -618,12 +632,23 @@ namespace clap { namespace helpers {
                                              const char *name) noexcept;
 
       // clap_plugin_location
-      static void clapLocationSetLocation(const clap_plugin_t *plugin,
-                                          const clap_plugin_location_element_t *path,
-                                          uint32_t num_elements) noexcept;
+      static void clapProjectLocationSet(const clap_plugin_t *plugin,
+                                         const clap_project_location_element_t *path,
+                                         uint32_t num_elements) noexcept;
 
       // clap_plugin_gain_adjustment_metering
       static double clapGainAdjustmentMeteringGet(const clap_plugin_t *plugin) noexcept;
+
+      // clap_plugin_mini_curve_display
+      static bool clapMiniCurveDisplayRender(const clap_plugin_t *plugin,
+                                             uint16_t *data,
+                                             uint32_t data_size) noexcept;
+      static void clapMiniCurveDisplaySetObserved(const clap_plugin_t *plugin,
+                                                  bool is_observed) noexcept;
+      static bool clapMiniCurveDisplayGetAxisName(const clap_plugin_t *plugin,
+                                                  char *x_name,
+                                                  char *y_name,
+                                                  uint32_t name_capacity) noexcept;
 
       // interfaces
       static const clap_plugin_audio_ports _pluginAudioPorts;
@@ -651,8 +676,9 @@ namespace clap { namespace helpers {
       static const clap_plugin_resource_directory _pluginResourceDirectory;
       static const clap_plugin_undo_delta _pluginUndoDelta;
       static const clap_plugin_undo_context _pluginUndoContext;
-      static const clap_plugin_location _pluginLocation;
+      static const clap_plugin_project_location _pluginProjectLocation;
       static const clap_plugin_gain_adjustment_metering _pluginGainAdjustmentMetering;
+      static const clap_plugin_mini_curve_display _pluginMiniCurveDisplay;
 
       // state
       bool _wasInitialized = false;
